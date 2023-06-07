@@ -7,3 +7,8 @@ usage:
 * start rabbitMQ server `docker-compose up`
 * start `./rmq-producer-example.pl` to post message to the rabbitMQ
 * start `./rmq-consumer-example.pl` to read this message from rabbitMQ queue
+
+
+You can use RabbitMQ web console http://localhost:15672/ to see connections, channels, queues, consumers and even get messages from a queue. 
+
+
