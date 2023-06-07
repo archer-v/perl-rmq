@@ -1,2 +1,2 @@
 # perl-rmq
-RabbitMQ communication module and AnyEvent rmq example
+RabbitMQ communication wrapping module and some examples that uses AnyEvent::RabbitMQ for RabbitMQ interaction
