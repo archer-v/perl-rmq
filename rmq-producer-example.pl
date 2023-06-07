@@ -2,7 +2,7 @@
 
 # this is an example that demonstrate how to post messages to RabbitMQ using our rmq.pm wrapper module (
 # we connect to rmq, creates exchange "liberator", than creates two queues, post message into the queue and exit
-# you can see connetion and the message using rmq web console: http://localhost:15672/#/queues/%2F/client.firstConnect
+# you can observe connections, queues and the messages using rmq web console: http://localhost:15672/#/queues/%2F/client.firstConnect
 
 use strict;
 use warnings;
@@ -14,7 +14,6 @@ use Data::Dumper;
 
 use lib ".";
 use lib "./lib";
-use lib "../lib";
 
 use logtiny;
 use rmq;
