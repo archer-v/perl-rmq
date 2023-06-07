@@ -1,5 +1,6 @@
 #
-# RabbitMQ communication wrapping module, that uses AnyEvent::RabbitMQ module for RabbitMQ interaction
+# rmq is a wrapping module, utilizing AnyEvent::RabbitMQ for RabbitMQ interaction
+# implements general RabbitMQ operations with transparent reconnecting and resubscribing feature after disconnects or network issues
 # see example rmq-producer-example.pl and rmq-consumer-test.pl
 #
 # (c) Starshiptroopers, Aleksander Cherviakov
@@ -34,8 +35,12 @@ our $user = undef;
 our $pass = undef;
 
 our $queues = undef;
+my $consumers = {
+
+};
 
 my $rmq_reconnect_task = undef;
+my $rmq_resubscribe_task = undef;
 
 my $log_prefix = "RMQ";
 my @id_chars = ("A" .. "F", 0..9);
@@ -183,6 +188,72 @@ sub publish {
         },
     );
     return $id;
+}
+
+
+sub consume($$) {
+    my $queue_name = shift;
+    my $cb = shift;
+
+    if (defined $consumers->{$queue_name}) {
+        return $consumers->{$queue_name}->{consumer_tag}
+    }
+
+    my $state_cb = sub {
+        $consumers->{$queue_name}->{ok} = shift;
+    };
+    if (! defined $rmq_resubscribe_task) {
+        $rmq_resubscribe_task = AnyEvent->timer (
+            after => 5,
+            interval => 5,
+            cb => sub {
+                foreach my $qname (keys %$consumers) {
+                    if (! $consumers->{$qname}->{ok}) {
+                        $consumers->{$queue_name}->{'consumer_tag'} = rmq_consume($queue_name, $cb, $state_cb);
+                        logwi("$log_prefix: subscribing is recreating");
+                    }
+                }
+            }
+        );
+    }
+    $consumers->{$queue_name} = {};
+    $consumers->{$queue_name}->{'consumer_tag'} = rmq_consume($queue_name, $cb, $state_cb);
+    return $consumers->{$queue_name}->{'consumer_tag'}
+}
+
+sub rmq_consume {
+    my $queue_name = shift;
+    my $cb = shift;
+    my $state_cb = shift;
+    my $consumer_tag = $exchange_name . createNewMessageID();
+    if (! defined $rmq_channel) {
+        return undef
+    }
+    $rmq_channel->consume(
+        queue    => $queue_name,
+        consumer_tag => $consumer_tag,
+        on_consume  => sub {
+            my $msg = shift;
+            my $id = $msg->{header}->{message_id};
+            logwi("$log_prefix: new message has been received" . (defined $id ? " with id $id":"") . " from queue $queue_name");
+            &$cb($msg) if (defined $cb);
+        },
+        on_cancel  => sub {
+            my $method_frame = shift->method_frame;
+            logwe("$log_prefix: subscription is canceled: ".$method_frame->reply_code.", ".$method_frame->reply_text);
+            &$state_cb(0);
+        },
+        on_success  => sub {
+            logwi("$log_prefix: subscribed for message from $queue_name queue");
+            &$state_cb(1);
+        },
+        on_failure  => sub {
+            my $method_frame = shift->method_frame;
+            logwe("$log_prefix: subscription is failed: ".$method_frame->reply_code.", ".$method_frame->reply_text);
+            &$state_cb(0);
+        },
+    );
+    return $consumer_tag;
 }
 
 sub createNewMessageID {
