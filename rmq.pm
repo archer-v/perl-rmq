@@ -1,7 +1,9 @@
 #
 # rmq is a wrapping module, utilizing AnyEvent::RabbitMQ for RabbitMQ interaction
 # implements general RabbitMQ operations with transparent reconnecting and resubscribing feature after disconnects or network issues
-# see example rmq-producer-example.pl and rmq-consumer-test.pl
+# some constants and protocol options are hardcoded, and this module should be used only as a demonstration or boilerplate
+#
+# see examples rmq-producer-example.pl and rmq-consumer-test.pl
 #
 # (c) Starshiptroopers, Aleksander Cherviakov
 
@@ -174,7 +176,7 @@ sub publish {
     my $routing_key = shift;
     my $data = shift;
     my $json = new JSON::XS;
-    my $id = createNewMessageID();
+    my $id = createNewID();
     $rmq_channel->publish(
         exchange    => $exchange_name,
         routing_key => $routing_key,
@@ -225,7 +227,7 @@ sub rmq_consume {
     my $queue_name = shift;
     my $cb = shift;
     my $state_cb = shift;
-    my $consumer_tag = $exchange_name . createNewMessageID();
+    my $consumer_tag = $exchange_name . createNewID();
     if (! defined $rmq_channel) {
         return undef
     }
@@ -256,7 +258,7 @@ sub rmq_consume {
     return $consumer_tag;
 }
 
-sub createNewMessageID {
+sub createNewID {
     return join("", @id_chars[ map {rand @id_chars} (1..10)]);
 }
 
